@@ -1,0 +1,3 @@
+[submodule "Lib/pico-sensor-lib"]
+	path = Lib/pico-sensor-lib
+	url = https://github.com/tjko/pico-sensor-lib.git
