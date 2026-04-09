@@ -33,18 +33,22 @@ project(SHT40Test C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-add_subdirectory(Lib/sht40x_driver)
+add_subdirectory(Libs/pico-sensor-lib)
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(SHT40Test SHT40Test.cpp )
+add_executable(SHT40Test 
+    Src/SHT40Test.cpp 
+    Src/TempHandlers.cpp
+    Src/PWMHandlers.cpp
+)
 
 pico_set_program_name(SHT40Test "SHT40Test")
 pico_set_program_version(SHT40Test "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(SHT40Test 0)
-pico_enable_stdio_usb(SHT40Test 0)
+pico_enable_stdio_usb(SHT40Test 1)
 
 # Add the standard library to the build
 target_link_libraries(SHT40Test
@@ -54,13 +58,16 @@ target_link_libraries(SHT40Test
 # Add the standard include files to the build
 target_include_directories(SHT40Test PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/Inc
 )
 
 # Add any user requested libraries
 target_link_libraries(SHT40Test 
         hardware_i2c
+        hardware_adc
+        hardware_pwm
         pico_cyw43_arch_none
-        sht40x_driver
+        pico_sensor_lib
         )
 
 pico_add_extra_outputs(SHT40Test)
