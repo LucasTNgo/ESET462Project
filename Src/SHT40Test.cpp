@@ -10,6 +10,7 @@
 
 #include "pico_sensor_lib.h"
 #include "TempHandlers.h"
+#include "FanControl.h"
 
 // Humidity Sensor 1
 #define I2C0_PORT i2c0
@@ -22,12 +23,18 @@
 #define I2C1_SCL 15
 
 //NTC Sensors
-#define GPIO_NTC1 26
-#define ADC_NTC1 0
-#define GPIO_NTC2 27
-#define ADC_NTC2 1
+//#define GPIO_NTC1 26
+//#define ADC_NTC1 0
+//#define GPIO_NTC2 27
+//#define ADC_NTC2 1
+
+//Fan
+#define FAN_PWM 13
+#define FAN_TACH 26
+
 
 void i2c_setup(i2c_inst_t *i2c, uint sda_pin, uint scl_pin, uint baudrate);
+float clamp_float(float value, float min, float max);
 
 //int blink = 0;
 int count = 0;
@@ -35,7 +42,11 @@ int count = 0;
 int main()
 {
     stdio_init_all();
-    adc_init();
+
+    FanControl fan(FAN_PWM, FAN_TACH);   // PWM pin 0, tach pin 2
+    float fan_duty;
+    fan.init();
+    fan.set_duty(0.5f);  // 50% duty
 
     // Initialise the Wi-Fi chip
     if (cyw43_arch_init()) {
@@ -47,9 +58,12 @@ int main()
     i2c_setup(I2C0_PORT, I2C0_SDA, I2C0_SCL, 400 * 1000);
     i2c_setup(I2C1_PORT, I2C1_SDA, I2C1_SCL, 400 * 1000);
 
+    /*
     //Init ADC pins
+    adc_init();
     adc_gpio_init(GPIO_NTC1); // ADC0
     adc_gpio_init(GPIO_NTC2); // ADC1
+    */
 
     // Example to turn on the Pico W LED
     //cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
@@ -65,15 +79,30 @@ int main()
         //Get SHT40 Readings
         reading1 = get_sensor_reading(SHT40_1);
         reading2 = get_sensor_reading(SHT40_2);
-        printf("\nCount %d =========\n", count);
-        printf("Sensor 1:\tTemp: %0.2f\tHumidity: %0.2f\n", reading1.temp, reading1.humidity);
-        printf("Sensor 2:\tTemp: %0.2f\tHumidity: %0.2f\n", reading2.temp, reading2.humidity);
-
+        /*
         //Get NTC readings
         float temp_NTC1 = ntc_temperature_c(ADC_NTC1);
-        printf("\nNTC 1: Temp: %0.3f\t", temp_NTC1);
+        */ 
 
-        sleep_ms(1000);
+        // Set fan speed
+        if (reading1.error == 0)
+        {
+            fan_duty = clamp_float((reading1.temp - 20.0f)/10.0f, 0.0f, 1.0f);
+            fan.set_duty(fan_duty);
+        }
+        
+        
+        if(count % 10 == 0)
+        {
+            printf("\nCount %d =========\n", count/10);
+            printf("Sensor 1:\tTemp: %0.2f\tHumidity: %0.2f\n", reading1.temp, reading1.humidity);
+            printf("Sensor 2:\tTemp: %0.2f\tHumidity: %0.2f\n", reading2.temp, reading2.humidity);
+            //printf("NTC 1: Temp: %0.3f\n", temp_NTC1);
+            printf("Fan PWM: %0.2f\n", fan_duty); 
+            printf("Fan Tach: %0.2f\n", fan.get_rpm()); 
+        }
+
+        sleep_ms(100);
     }
 }
 
@@ -91,3 +120,9 @@ void i2c_setup(i2c_inst_t *i2c, uint sda_pin, uint scl_pin, uint baudrate)
     gpio_pull_up(scl_pin);
 }
 
+float clamp_float(float value, float min, float max)
+{
+    if (value > max) return max;
+    if (value < min) return min;
+    return value;
+}

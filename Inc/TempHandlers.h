@@ -11,6 +11,7 @@
 
 
 struct SensorReading {
+    int error;
     float temp;
     float pressure;
     float humidity;
