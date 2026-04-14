@@ -5,7 +5,8 @@ FanControl* FanControl::_instances[30] = {nullptr};
 FanControl::FanControl(uint pwm_pin, uint tach_pin, float pwm_freq, uint pulses_per_rev)
     : _pwm(pwm_pin, pwm_freq),
       _tach_pin(tach_pin),
-      _ppr(pulses_per_rev)
+      _ppr(pulses_per_rev),
+      _tach_count(0)
 {
 }
 
@@ -50,6 +51,7 @@ void FanControl::gpio_callback(uint gpio, uint32_t events) {
 
 void FanControl::handle_interrupt() {
     uint32_t now = time_us_32();
+    _tach_count++;
 
     if ((now - _last_time) < MIN_PULSE_US) return;
     _last_time = now;

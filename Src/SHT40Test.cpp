@@ -32,21 +32,35 @@
 #define FAN_PWM 13
 #define FAN_TACH 26
 
+//Heater
+#define HEATER_PIN 20
+#define HEATER_FREQ 0.6f
 
 void i2c_setup(i2c_inst_t *i2c, uint sda_pin, uint scl_pin, uint baudrate);
 float clamp_float(float value, float min, float max);
 
-//int blink = 0;
-int count = 0;
 
 int main()
 {
     stdio_init_all();
 
+    //int blink = 0;
+    int count = 0;
+
+    // Fan init
     FanControl fan(FAN_PWM, FAN_TACH);   // PWM pin 0, tach pin 2
     float fan_duty;
     fan.init();
-    fan.set_duty(0.5f);  // 50% duty
+    fan.set_duty(0.0f);
+
+    // Heater init
+    PWMPin heater(HEATER_PIN, HEATER_FREQ);
+    heater.set_duty_cycle(0.0f);
+    heater.enable_slice();
+    heater.enable_pin();
+
+    bool sweep_reverse = false;
+    float cur_duty = 0.0f;
 
     // Initialise the Wi-Fi chip
     if (cyw43_arch_init()) {
@@ -72,6 +86,10 @@ int main()
     void *SHT40_2 = setup_sht4x(i2c1, 'A');
     SensorReading reading1, reading2;
 
+
+    // Final pre-loop section
+    heater.set_duty_cycle(0.3f);
+
     while (true) {
         count++;
         //cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, blink++%2);
@@ -79,6 +97,7 @@ int main()
         //Get SHT40 Readings
         reading1 = get_sensor_reading(SHT40_1);
         reading2 = get_sensor_reading(SHT40_2);
+        
         /*
         //Get NTC readings
         float temp_NTC1 = ntc_temperature_c(ADC_NTC1);

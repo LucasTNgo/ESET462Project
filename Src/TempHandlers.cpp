@@ -47,7 +47,6 @@ SensorReading get_sensor_reading(void* ctx)
     SensorReading readings = {1, 0.0f, 0.0f, 0.0f};
     int delay = i2c_start_measurement(ctx);
     if (delay < 0) {
-        printf("Failed to initiate measurement\n");
         return readings;
     }
     sleep_ms(delay);
@@ -55,7 +54,7 @@ SensorReading get_sensor_reading(void* ctx)
 
     int res = i2c_read_measurement(ctx, &readings.temp, &readings.pressure, &readings.humidity);
     if (res) {
-        printf("Measurement error\n");
+        readings.error = res;
     }
     else { readings.error = 0; }
     return readings;

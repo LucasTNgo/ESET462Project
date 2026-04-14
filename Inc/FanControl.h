@@ -16,6 +16,7 @@ public:
     float get_duty();
 
     float get_rpm();
+    uint32_t _tach_count;
 
 private:
     // PWM
@@ -25,7 +26,7 @@ private:
     uint _tach_pin;
     uint _ppr;
 
-    static constexpr uint BUF_SIZE = 32;
+    static constexpr uint BUF_SIZE = 8;
 
     volatile uint32_t _buf[BUF_SIZE];
     volatile uint8_t _head = 0;

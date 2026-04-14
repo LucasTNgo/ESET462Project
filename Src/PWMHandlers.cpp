@@ -1,5 +1,6 @@
 #include "PWMHandlers.h"
 
+#define SYS_CLK 150000000.0f
 
 float PWMPin::sliceFreqs[8] = {0};
 bool PWMPin::sliceEnabled[8] = {0};
@@ -7,7 +8,7 @@ bool PWMPin::sliceEnabled[8] = {0};
 uint    PWMPin::get_pin()           { return this->pin; }
 float   PWMPin::get_freq()          { return PWMPin::sliceFreqs[this->slice]; }
 uint    PWMPin::get_slice()         { return this->slice; }
-float   PWMPin::get_clkdiv()        { return 125000000.0f / (this->get_freq() * 65536.0f); }
+float   PWMPin::get_clkdiv()        { return SYS_CLK / (this->get_freq() * 65536.0f); }
 float   PWMPin::get_duty_cycle()    { return this->dutyCycle; }
 bool    PWMPin::is_slice_enabled()        { return this->sliceEnabled[this->slice]; }
 bool    PWMPin::is_pin_enabled()        { return this->pinEnabled; }
@@ -28,7 +29,7 @@ void PWMPin::set_freq(float freq)
 {
 // Set frequency
     this->sliceFreqs[this->slice] = freq;
-    float divider = 125000000.0f / (freq * 65536.0f);
+    float divider = SYS_CLK / (freq * 65536.0f);
     pwm_set_clkdiv(this->slice, divider);
     pwm_set_wrap(this->slice, 65535);
 }
