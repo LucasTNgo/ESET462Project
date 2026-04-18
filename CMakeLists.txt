@@ -35,6 +35,7 @@ pico_sdk_init()
 
 add_subdirectory(Libs/pico-sensor-lib)
 add_subdirectory(Tools/FanCharacterization)
+add_subdirectory(Tools/HeaterCharacterization)
 
 
 # Add executable. Default name is the project name, version 0.1
@@ -44,6 +45,8 @@ add_executable(SHT40Test
     Src/TempHandlers.cpp
     Src/PWMHandlers.cpp
     Src/FanControl.cpp
+    Src/HeaterControl.cpp
+    Src/PIDHandler.cpp
 )
 
 pico_set_program_name(SHT40Test "SHT40Test")

@@ -11,6 +11,8 @@
 #include "pico_sensor_lib.h"
 #include "TempHandlers.h"
 #include "FanControl.h"
+#include "HeaterControl.h"
+#include "PIDHandler.h"
 
 // Humidity Sensor 1
 #define I2C0_PORT i2c0
@@ -38,7 +40,7 @@
 
 void i2c_setup(i2c_inst_t *i2c, uint sda_pin, uint scl_pin, uint baudrate);
 float clamp_float(float value, float min, float max);
-
+uint64_t get_time_us();
 
 int main()
 {
@@ -54,13 +56,9 @@ int main()
     fan.set_duty(0.0f);
 
     // Heater init
-    PWMPin heater(HEATER_PIN, HEATER_FREQ);
-    heater.set_duty_cycle(0.0f);
-    heater.enable_slice();
-    heater.enable_pin();
-
-    bool sweep_reverse = false;
-    float cur_duty = 0.0f;
+    HeaterControl heater(HEATER_PIN, HEATER_FREQ);
+    heater.init();  // missing
+    heater.set_duty(0.25f);
 
     // Initialise the Wi-Fi chip
     if (cyw43_arch_init()) {
@@ -84,12 +82,22 @@ int main()
 
     void *SHT40_1 = setup_sht4x(i2c0, 'A'); // setup_sht4x generates a pointer handle for the sensor
     void *SHT40_2 = setup_sht4x(i2c1, 'A');
-    SensorReading reading1, reading2;
+    SensorReading reading1 = get_sensor_reading(SHT40_1);
+    SensorReading reading2 = get_sensor_reading(SHT40_2);
+    auto get_temperature = [&reading1]()->float { return reading1.temp; };
+    
+    PIDHandler::Gains gains = {
+        .kp = 0.04f,
+        .ki = 0.0008f,
+        .kd = 0.0f
+    };
+    PIDHandler heaterControl(gains, get_time_us, get_temperature);
+    heaterControl.set_target(50.0f);
+    heaterControl.set_windup_clamp(-.1, 0.1);
+    heaterControl.set_anti_windup(PIDHandler::AntiWindupType::CLAMP);
 
-
-    // Final pre-loop section
-    heater.set_duty_cycle(0.3f);
-
+    //Initialize heaterControl
+    float heater_effort = heaterControl.tick();
     while (true) {
         count++;
         //cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, blink++%2);
@@ -106,11 +114,17 @@ int main()
         // Set fan speed
         if (reading1.error == 0)
         {
-            fan_duty = clamp_float((reading1.temp - 20.0f)/10.0f, 0.0f, 1.0f);
+            fan_duty = clamp_float((reading1.temp - 20.0f)/10.0f, 0.0f, 1.0f); //Interpolates fan power (0-1) between 20 and 30C
             fan.set_duty(fan_duty);
         }
         
-        
+        // Set heater
+        if (reading1.error == 0)
+        {
+            heater_effort = heaterControl.tick();
+            heater.set_duty(clamp_float(heater_effort, 0.0f, 1.0f));
+        }
+
         if(count % 10 == 0)
         {
             printf("\nCount %d =========\n", count/10);
@@ -118,7 +132,8 @@ int main()
             printf("Sensor 2:\tTemp: %0.2f\tHumidity: %0.2f\n", reading2.temp, reading2.humidity);
             //printf("NTC 1: Temp: %0.3f\n", temp_NTC1);
             printf("Fan PWM: %0.2f\n", fan_duty); 
-            printf("Fan Tach: %0.2f\n", fan.get_rpm()); 
+            printf("Heater effort: %0.3f\n", heater_effort); 
+            
         }
 
         sleep_ms(100);
@@ -145,3 +160,9 @@ float clamp_float(float value, float min, float max)
     if (value < min) return min;
     return value;
 }
+
+uint64_t get_time_us()
+{
+    return time_us_64();
+}
+
