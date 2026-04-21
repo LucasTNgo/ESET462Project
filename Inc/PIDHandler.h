@@ -25,6 +25,7 @@ public:
 
     float tick();
     Gains get_gains();
+    void set_gains(Gains gains);
     void set_target(Type target);
     int set_anti_windup(AntiWindupType anti_windup_type);
     void set_windup_clamp(Type min, Type max);

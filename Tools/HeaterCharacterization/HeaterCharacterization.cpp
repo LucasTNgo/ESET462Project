@@ -3,6 +3,7 @@
 #include "hardware/i2c.h"
 #include "TempHandlers.h"
 #include "HeaterControl.h"
+#include "FanControl.h"
 
 // Humidity Sensor 1
 #define I2C0_PORT i2c0
@@ -18,7 +19,10 @@
 #define HEATER_FREQ 0.6f
 #define HEATER_DUTY 0.10f
 
-#define SAMPLE_MS 500
+#define FAN_PWM 13
+#define FAN_TACH 26
+
+#define SAMPLE_MS 3333
 
 void i2c_setup(i2c_inst_t *i2c, uint sda, uint scl, uint baud)
 {
@@ -32,7 +36,6 @@ void i2c_setup(i2c_inst_t *i2c, uint sda, uint scl, uint baud)
 int main()
 {
     stdio_init_all();
-    sleep_ms(3000);
 
 
     //Init I2C
@@ -47,17 +50,24 @@ int main()
 
     HeaterControl heater(HEATER_PIN, HEATER_FREQ);
     heater.init();
+
+    FanControl fan(FAN_PWM, FAN_TACH);
+    fan.init();
+    float fan_rpm;
+
+    sleep_ms(3000);
+    printf("time_ms, temp_inside, humidity_inside, error_inside, temp_outside, humidity_outside, error_outside, fan_rpm\n");
+
+    fan.set_duty(1.0);
     heater.set_duty(HEATER_DUTY);
-
-    printf("time_ms, temp_inside, humidity_inside, error_inside, temp_outside, humidity_outside, error_outside\n");
-
     uint32_t start = to_ms_since_boot(get_absolute_time());
 
     while (true) {
+        fan_rpm = fan.get_rpm();
         reading_inside = get_sensor_reading(SHT40_1);
         reading_outside = get_sensor_reading(SHT40_2);
         uint32_t t = to_ms_since_boot(get_absolute_time()) - start;
-        printf("%lu, %.3f, %.3f, %d, %.3f, %.3f, %d\n", t, reading_inside.temp, reading_inside.humidity, reading_inside.error, reading_outside.temp, reading_outside.humidity, reading_outside.error);
+        printf("%lu, %.3f, %.3f, %d, %.3f, %.3f, %d, %d, %.1f\n", t, reading_inside.temp, reading_inside.humidity, reading_inside.error, reading_outside.temp, reading_outside.humidity, reading_outside.error, fan_rpm);
 
         sleep_ms(SAMPLE_MS);
     }

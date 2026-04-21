@@ -40,6 +40,7 @@ PIDHandler::Type PIDHandler::tick()
 
 
 PIDHandler::Gains PIDHandler::get_gains() { return _gains; }
+void PIDHandler::set_gains(Gains gains) { _gains = gains; }
 void PIDHandler::set_target(Type target) { _target = target; }
 
 

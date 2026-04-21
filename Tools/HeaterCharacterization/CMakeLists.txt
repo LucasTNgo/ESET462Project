@@ -3,6 +3,7 @@ add_executable(HeaterCharacterization
     ../../Src/PWMHandlers.cpp
     ../../Src/TempHandlers.cpp
     ../../Src/HeaterControl.cpp
+    ../../Src/FanControl.cpp
 )
 
 target_link_libraries(HeaterCharacterization
