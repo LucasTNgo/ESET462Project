@@ -19,7 +19,7 @@ PIDHandler::Type PIDHandler::tick()
     Type state   = _get_state();
 
     Type dt      = (now - _last_time_us) / 1000000.0f; // microseconds to seconds
-    if (dt <= 0.000001f){ dt = 0.000001f; }
+    if (dt <= 0.0001f){ dt = 0.0001f; }
 
     Type error   = _target - state;
 

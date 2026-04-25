@@ -99,13 +99,13 @@ int main()
     auto get_temperature = []()->float { return int_reading.temp; };
 
     PIDHandler::Gains heater_gains = {
-        .kp = 0.0756782425937777f,
-        .ki = 0.000328958796246057f,
+        .kp = 0.0848136068469526f,
+        .ki = 6.59728735270854e-05f,
         .kd = 0.001f
     };
     PIDHandler::Gains heater_with_fan_gains = {
-        .kp = 0.0851739669788485f,
-        .ki = 0.000443182667027436f,
+        .kp = 0.0806963431668464f,
+        .ki = 6.2770230388285e-05f,
         .kd = 0.001f
     };
     PIDHandler::Gains interpolated_gains = heater_gains;
@@ -115,13 +115,13 @@ int main()
     heater_controller.set_anti_windup(PIDHandler::AntiWindupType::CLAMP);
 
     PIDHandler::Gains fan_gains = {
-        .kp = -2.0585,
-        .ki = -0.078125f,
-        .kd = -0.001f
+        .kp = 2.0585,
+        .ki = 0.078125f,
+        .kd = 0.0f
     };
     PIDHandler fan_controller(fan_gains, get_time_us, get_equiv_rhdiff);
-    fan_controller.set_target(0.0f);
-    fan_controller.set_windup_clamp(-.5, 0.5);
+    fan_controller.set_target(0.03f);
+    fan_controller.set_windup_clamp(-.3, 0.3);
     fan_controller.set_anti_windup(PIDHandler::AntiWindupType::CLAMP);
 
     //Initialize heater_controller
@@ -151,25 +151,31 @@ int main()
                                    .ki = heater_gains.ki*(1-fan_duty) + heater_with_fan_gains.ki*fan_duty,
                                    .kd = heater_gains.kd*(1-fan_duty) + heater_with_fan_gains.kd*fan_duty };
             heater_controller.set_gains(interpolated_gains);
-            heater_effort = heater_controller.tick();
-            heater.set_duty(clamp_float(heater_effort, 0.0f, 1.0f));
+            heater_effort = clamp_float(heater_controller.tick(), 0.0f, 1.0f);
+            heater.set_duty(heater_effort);
 
             // Set fan
             fan_effort = fan_controller.tick();
-            fan_duty = clamp_float(fan_effort, 0.0f, 1.0f);
+            fan_duty = clamp_float(-fan_effort, 0.0f, 1.0f);
             fan.set_duty(fan_duty);
         }
-
-        if(count % 10 == 0)
+        
+        
+        if(count % 9 == 0)
         {
+            /*
             printf("\nCount %d =========\n", count/10);
             printf("Internal:\tTemp: %0.2f\tRH: %0.2f%\n", int_reading.temp, int_reading.humidity);
             printf("External:\tTemp: %0.2f\tRH: %0.2f%\teRH: %0.2f\t deltaRH: %0.2f\n", ext_reading.temp, ext_reading.humidity, ext_equiv_rh, get_equiv_rhdiff());
             //printf("NTC 1: Temp: %0.3f\n", temp_NTC1);
             printf("Fan effort: %0.2f, Fan RPM: %.2f\n", fan_effort, fan.get_rpm()); 
             printf("Heater effort: %0.3f\n", heater_effort);
+            */
+
         }
         
+        printf("%.3f,%.3f,%.3f,%.3f\n", int_reading.temp, int_reading.humidity, heater_effort, fan_duty);
+
         sleep_ms(100);
     }
 }
@@ -268,5 +274,5 @@ float relative_humidity(float temp_c, float abs_humidity)
 }
 
 float get_equiv_rhdiff(){
-    return int_reading.humidity-ext_equiv_rh;
+    return (int_reading.humidity-ext_equiv_rh)/100;
 }
