@@ -1,58 +1,26 @@
+extern "C" {
+    // STL and pico libraries
+    #include "pico.h"
+    #include "pico/stdlib.h"
+    #include "pico/cyw43_arch.h"
+    #include "pico/time.h"
+    #include "hardware/i2c.h" //These after platform.h
+    #include "hardware/gpio.h"
+    #include "hardware/adc.h"
+    #include "hardware/pwm.h"
+    #include "FreeRTOS.h"
+    #include "task.h"
+}
+
 #include <stdio.h>
 #include <math.h>
-#include "pico/stdlib.h"
-#include "pico/cyw43_arch.h"
-#include "pico/time.h"
-#include "hardware/i2c.h"
-#include "hardware/gpio.h"
-#include "hardware/adc.h"
-#include "hardware/pwm.h"
 
-#include "pico_sensor_lib.h"
-#include "TempHandlers.h"
-#include "FanControl.h"
-#include "HeaterControl.h"
-#include "PIDHandler.h"
+#include "System.hpp"
 
-// Humidity Sensor 1
-#define I2C0_PORT i2c0
-#define I2C0_SDA 16
-#define I2C0_SCL 17
-
-// Humidity Sensor 2
-#define I2C1_PORT i2c1
-#define I2C1_SDA 14
-#define I2C1_SCL 15
-
-//NTC Sensors
-//#define GPIO_NTC1 26
-//#define ADC_NTC1 0
-//#define GPIO_NTC2 27
-//#define ADC_NTC2 1
-
-//Fan
-#define FAN_PWM 13
-#define FAN_TACH 26
-
-//Heater
-#define HEATER_PIN 20
-#define HEATER_FREQ 0.6f
-
-// IO buffer
-#define BUF_SIZE 64
-
+// Helper functions
 void i2c_setup(i2c_inst_t *i2c, uint sda_pin, uint scl_pin, uint baudrate);
-float clamp_float(float value, float min, float max);
-uint64_t get_time_us();
-int read_usb_float(float *out);
-float absolute_humidity(float temp_c, float rel_humidity);
-float relative_humidity(float temp_c, float abs_humidity);
-float get_equiv_rhdiff();
 
-SensorReading int_reading;
-SensorReading ext_reading;
-float ext_abs_h;
-float ext_equiv_rh;
+SystemReadings state;
 
 int main()
 {
@@ -94,9 +62,9 @@ int main()
 
     void *SHT40_1 = setup_sht4x(i2c0, 'A'); // setup_sht4x generates a pointer handle for the sensor
     void *SHT40_2 = setup_sht4x(i2c1, 'A');
-    int_reading = get_sensor_reading(SHT40_1);
-    ext_reading = get_sensor_reading(SHT40_2);
-    auto get_temperature = []()->float { return int_reading.temp; };
+    state.int_reading = get_sensor_reading(SHT40_1);
+    state.ext_reading = get_sensor_reading(SHT40_2);
+    auto get_temperature = []()->float { return state.int_reading.temp; };
 
     PIDHandler::Gains heater_gains = {
         .kp = 0.0848136068469526f,
@@ -132,19 +100,18 @@ int main()
         //cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, blink++%2);
         
         //Get SHT40 Readings
-        int_reading = get_sensor_reading(SHT40_1);
-        ext_reading = get_sensor_reading(SHT40_2);
+        state.int_reading = get_sensor_reading(SHT40_1);
+        state.ext_reading = get_sensor_reading(SHT40_2);
 
         /*
         //Get NTC readings
         float temp_NTC1 = ntc_temperature_c(ADC_NTC1);
         */ 
 
-        if (int_reading.error == 0 && ext_reading.error == 0)
+        if (state.int_reading.error == 0 && state.ext_reading.error == 0)
         {
             // Calculate external equivalent humidity
-            ext_abs_h = absolute_humidity(ext_reading.temp, ext_reading.humidity);
-            ext_equiv_rh = relative_humidity(int_reading.temp, ext_abs_h);
+            state.ext_equiv_rh = relative_humidity(state.int_reading.temp, absolute_humidity(state.ext_reading.temp, state.ext_reading.humidity));
 
             // Set heater
             interpolated_gains = { .kp = heater_gains.kp*(1-fan_duty) + heater_with_fan_gains.kp*fan_duty,
@@ -165,8 +132,8 @@ int main()
         {
             /*
             printf("\nCount %d =========\n", count/10);
-            printf("Internal:\tTemp: %0.2f\tRH: %0.2f%\n", int_reading.temp, int_reading.humidity);
-            printf("External:\tTemp: %0.2f\tRH: %0.2f%\teRH: %0.2f\t deltaRH: %0.2f\n", ext_reading.temp, ext_reading.humidity, ext_equiv_rh, get_equiv_rhdiff());
+            printf("Internal:\tTemp: %0.2f\tRH: %0.2f%\n", state.int_reading.temp, state.int_reading.humidity);
+            printf("External:\tTemp: %0.2f\tRH: %0.2f%\teRH: %0.2f\t deltaRH: %0.2f\n", state.ext_reading.temp, state.ext_reading.humidity, state.ext_equiv_rh, get_equiv_rhdiff());
             //printf("NTC 1: Temp: %0.3f\n", temp_NTC1);
             printf("Fan effort: %0.2f, Fan RPM: %.2f\n", fan_effort, fan.get_rpm()); 
             printf("Heater effort: %0.3f\n", heater_effort);
@@ -174,7 +141,7 @@ int main()
 
         }
         
-        printf("%.3f,%.3f,%.3f,%.3f\n", int_reading.temp, int_reading.humidity, heater_effort, fan_duty);
+        printf("%.3f,%.3f,%.3f,%.3f\n", state.int_reading.temp, state.int_reading.humidity, heater_effort, fan_duty);
 
         sleep_ms(100);
     }
@@ -194,85 +161,7 @@ void i2c_setup(i2c_inst_t *i2c, uint sda_pin, uint scl_pin, uint baudrate)
     gpio_pull_up(scl_pin);
 }
 
-float clamp_float(float value, float min, float max)
-{
-    if (value > max) return max;
-    if (value < min) return min;
-    return value;
-}
-
-uint64_t get_time_us()
-{
-    return time_us_64();
-}
-
-// Call this periodically in your main loop
-// uart = uart0 or uart1
-// returns 1 when a new float is ready
-int read_usb_float(float *out)
-{
-    static char buf[64];
-    static int idx = 0;
-
-    while (true) {
-        int c = getchar_timeout_us(0); // non-blocking
-
-        if (c == PICO_ERROR_TIMEOUT)
-            break;
-
-        if (c == '\n' || c == '\r') {
-            if (idx == 0) continue;
-
-            buf[idx] = '\0';
-
-            char *end;
-            float val = strtof(buf, &end);
-
-            if (end != buf) {
-                *out = val;
-                idx = 0;
-                return 1;
-            }
-
-            idx = 0;
-        }
-        else {
-            if (idx < 63) buf[idx++] = (char)c;
-            else idx = 0;
-        }
-    }
-
-    return 0;
-}
-
-float absolute_humidity(float temp_c, float rel_humidity)
-{
-    // Saturation vapor pressure (hPa)
-    float es = 6.112f * expf((17.62f * temp_c) / (243.12f + temp_c));
-    
-    // Actual vapor pressure (hPa)
-    float e = (rel_humidity / 100.0f) * es;
-    
-    // Absolute humidity (g/m^3)
-    float ah = 216.7f * (e / (temp_c + 273.15f));
-    
-    return ah;
-}
-
-float relative_humidity(float temp_c, float abs_humidity)
-{
-    // Saturation vapor pressure (hPa)
-    float es = 6.112f * expf((17.62f * temp_c) / (243.12f + temp_c));
-    
-    // Actual vapor pressure from absolute humidity (hPa)
-    float e = (abs_humidity * (temp_c + 273.15f)) / 216.7f;
-    
-    // Relative humidity (%)
-    float rh = (e / es) * 100.0f;
-
-    return rh;
-}
-
+// TODO: Fix later
 float get_equiv_rhdiff(){
-    return (int_reading.humidity-ext_equiv_rh)/100;
+    return (state.int_reading.humidity-state.ext_equiv_rh)/100;
 }
