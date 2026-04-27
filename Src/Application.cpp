@@ -1,5 +1,6 @@
-// Application.cpp
 #include "Application.hpp"
+#include "ApplicationConfig.h"
+#include "RTOSTasks.hpp"
 #include "ZDomainPI.h"
 
 namespace Application
@@ -19,21 +20,19 @@ namespace Application
         is_init = true;
 
         // Controller Gains
-        heater_gains           = { .kp = 0.0848f, .ki = 6.597e-05f };
-        heater_with_fan_gains  = { .kp = 0.0807f, .ki = 6.277e-05f };
-        fan_gains              = { .kp = 2.0585f, .ki = 0.078125f  };
+        heater_gains          = { .kp = HEATER_KP,     .ki = HEATER_KI     };
+        heater_with_fan_gains = { .kp = HEATER_FAN_KP, .ki = HEATER_FAN_KI };
+        fan_gains             = { .kp = FAN_KP,        .ki = FAN_KI        };
 
-        // Heaters
-        zpi_init(&heater_controller, heater_gains, 0.1f);
-        zpi_set_target(&heater_controller, 50.0f);
-        zpi_set_clamp(&heater_controller, 0.f, 1.f);
-        zpi_set_clamp_type(&heater_controller, ZPI_CLAMPTYPE_CLAMP);
+        // Heater
+        zpi_init(&heater_controller, heater_gains, APP_SAMPLE_PERIOD_S);
+        zpi_set_target(&heater_controller, HEATER_TARGET);
+        zpi_set_clamp(&heater_controller, HEATER_CLAMP_MIN, HEATER_CLAMP_MAX);
 
-        // Fans
-        zpi_init(&fan_controller, fan_gains, 0.1f);
-        zpi_set_target(&fan_controller, 0.03f);
-        zpi_set_clamp(&fan_controller, -1.f, 0.f);
-        zpi_set_clamp_type(&fan_controller, ZPI_CLAMPTYPE_CLAMP);
+        // Fan
+        zpi_init(&fan_controller, fan_gains, APP_SAMPLE_PERIOD_S);
+        zpi_set_target(&fan_controller, FAN_TARGET);
+        zpi_set_clamp(&fan_controller, FAN_CLAMP_MIN, FAN_CLAMP_MAX);
 
         return 0;
     }
@@ -43,8 +42,12 @@ namespace Application
         if (state.int_reading.error != 0 || state.ext_reading.error != 0)
             return {};
 
-        float fan_effort = zpi_tick(&fan_controller, get_rh_diff(state));
-        float fan_duty   = clamp_float(-fan_effort, 0.3f, 1.0f);
+        float fan_effort  = zpi_tick(&fan_controller, get_rh_diff(state));
+        float fan_duty    = clamp_float(-fan_effort, 0.0f, 1.0f);
+
+        // Dead zone - fan doesn't behave below minimum
+        if (fan_duty < FAN_DUTY_MIN)
+            fan_duty = 0.0f;
 
         zpi_set_gains_interpolated(
             &heater_controller,
@@ -54,7 +57,7 @@ namespace Application
         );
 
         float heater_effort = zpi_tick(&heater_controller, get_temperature(state));
-        float heater_duty   = clamp_float(heater_effort, 0.0f, 1.0f);
+        float heater_duty   = clamp_float(heater_effort, HEATER_CLAMP_MIN, HEATER_CLAMP_MAX);
 
         return {
             .heater_duty = heater_duty,

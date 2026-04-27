@@ -3,14 +3,20 @@
 
 extern "C" {
     #include "pico/time.h"
+    #include "ApplicationConfig.h"
 }
+
+#define SENSOR_PERIOD_MS    100
+#define CONTROL_PERIOD_MS   APP_SAMPLE_PERIOD_MS       // Defined In ApplicationConfig.h 
+#define ACTUATOR_PERIOD_MS  1667
+#define DEBUG_PERIOD_MS     2000
 
 namespace
 {
-    constexpr TickType_t SENSOR_DELAY   = pdMS_TO_TICKS(100);
-    constexpr TickType_t CONTROL_DELAY  = pdMS_TO_TICKS(100);
-    constexpr TickType_t ACTUATOR_DELAY = pdMS_TO_TICKS(1667);
-    constexpr TickType_t DEBUG_DELAY    = pdMS_TO_TICKS(2000);
+    constexpr TickType_t SENSOR_DELAY   = pdMS_TO_TICKS(SENSOR_PERIOD_MS);
+    constexpr TickType_t CONTROL_DELAY  = pdMS_TO_TICKS(CONTROL_PERIOD_MS);
+    constexpr TickType_t ACTUATOR_DELAY = pdMS_TO_TICKS(ACTUATOR_PERIOD_MS);
+    constexpr TickType_t DEBUG_DELAY    = pdMS_TO_TICKS(DEBUG_PERIOD_MS);
 }
 
 namespace RTOSTasks
