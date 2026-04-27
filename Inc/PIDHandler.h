@@ -21,6 +21,7 @@ public:
 
     struct Gains { float kp, ki, kd; };
 
+    PIDHandler();
     PIDHandler(Gains gains, const TimeHook time_us_hook, const InputHook state_hook);
 
     float tick();
@@ -32,6 +33,7 @@ public:
     void set_output_limits(Type min, Type max);
 
 private:
+    bool initialized = false;
     TimeHook _get_time;
     InputHook _get_state;
 

@@ -1,5 +1,18 @@
 #include "PIDHandler.h"
 
+PIDHandler::PIDHandler()
+    : _gains({}),
+      _get_time(nullptr),
+      _get_state(nullptr),
+      _target(0),
+      _integral(0),
+      _is_clamp_set(false),
+      _aw_type(AntiWindupType::NONE)
+{
+    _last_time_us = _get_time();
+    _last_state = _get_state();
+}
+
 PIDHandler::PIDHandler(Gains gains, TimeHook time_hook, InputHook state_hook)
     : _gains(gains),
       _get_time(time_hook),
@@ -11,10 +24,16 @@ PIDHandler::PIDHandler(Gains gains, TimeHook time_hook, InputHook state_hook)
 {
     _last_time_us = _get_time();
     _last_state = _get_state();
+    initialized = true;
 }
 
 PIDHandler::Type PIDHandler::tick()
 {
+
+    if (!initialized || !_get_time || !_get_state) {
+        return 0.0f; // safe fallback
+    }
+
     uint64_t now     = _get_time();
     Type state   = _get_state();
 

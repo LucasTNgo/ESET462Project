@@ -14,8 +14,11 @@ void HeaterControl::init()
     gpio_put(_pin, 0);
 }
 
+
+float HeaterControl::get_duty() { return _duty; };
 void HeaterControl::set_duty(float duty)
 {
+    _duty = duty;
     _ticks_on = (uint32_t)(duty * TICKS + 0.5f);
 }
 

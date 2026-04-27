@@ -7,9 +7,11 @@ public:
     HeaterControl(uint pin, float freq = 0.6f);
     void init();
     void set_duty(float duty);
+    float get_duty();
 
 private:
     uint _pin;
+    float _duty;
     uint32_t _tick        = 0;
     uint32_t _ticks_on    = 0;
     repeating_timer_t _timer;

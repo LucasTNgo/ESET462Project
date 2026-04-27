@@ -1,9 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
-
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
 else()
@@ -16,15 +11,22 @@ set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
+# ====================================================================================
+cmake_minimum_required(VERSION 3.13)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 
 set(PICO_BOARD pico2_w CACHE STRING "Board type")
 include(pico_sdk_import.cmake)
 
 project(SHT40Test C CXX ASM)
+message(STATUS "Configuring target: SHT40Test")
 
 pico_sdk_init()
 
-# FreeRTOS - must be before add_executable
 # FreeRTOS - must be before add_executable
 add_library(freertos_config INTERFACE)
 target_include_directories(freertos_config SYSTEM INTERFACE Inc)
@@ -34,17 +36,23 @@ target_link_libraries(freertos_config INTERFACE pico_base_headers)
 include(FreeRTOS_Kernel_import.cmake)
 
 add_subdirectory(Libs/pico-sensor-lib)
-add_subdirectory(Tools/FanCharacterization)
-add_subdirectory(Tools/HeaterCharacterization)
+# add_subdirectory(Tools/FanCharacterization)
+# add_subdirectory(Tools/HeaterCharacterization)
 
 add_executable(SHT40Test 
-    Src/main.cpp 
+    Src/SHT40Test.cpp 
+    Src/IdleMemory.c
+    
     Src/TempHandlers.cpp
     Src/PWMHandlers.cpp
     Src/FanControl.cpp
     Src/HeaterControl.cpp
     Src/PIDHandler.cpp
-    Src/System.cpp
+    Src/ZDomainPI.c
+    Src/Hardware.cpp
+    Src/Application.cpp
+    Src/UserDebug.cpp
+    Src/RTOSTasks.cpp
 )
 
 pico_set_program_name(SHT40Test "SHT40Test")
