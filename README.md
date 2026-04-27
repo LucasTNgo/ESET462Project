@@ -184,7 +184,3 @@ Two standalone CMake targets are included:
 - On-device logging to external storage (SD / flash logging buffer)
 
 ---
-
-## License
-
-(Add your license here if applicable)
