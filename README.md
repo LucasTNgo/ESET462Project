@@ -175,12 +175,3 @@ Two standalone CMake targets are included:
 - Built-in system identification for model-based tuning
 
 ---
-
-## Future Improvements
-
-- Full system identification (fan + thermal coupling model)
-- State-space controller replacement for PI loops
-- Adaptive gain scheduling based on operating region
-- On-device logging to external storage (SD / flash logging buffer)
-
----
