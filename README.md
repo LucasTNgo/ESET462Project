@@ -172,6 +172,3 @@ Two standalone CMake targets are included:
 - Practical handling of non-ideal actuator behavior (fan dead zones, relay limits)
 - Control system designed around measurable physical dynamics
 - Clean separation of hardware, control logic, and scheduling
-- Built-in system identification for model-based tuning
-
----
